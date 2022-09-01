@@ -32,6 +32,7 @@ void inital_setup(void){
     P3->DIR &= ~(BIT5|BIT6);//configure to input
     P3->REN |= (BIT5|BIT6);//enable resistor
     P3->OUT |= (BIT5|BIT6);//set initial value to 1
+    //RGB setup
 }
 
 void delay_ms(uint8_t delay_time){
