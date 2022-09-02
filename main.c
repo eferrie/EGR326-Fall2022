@@ -32,7 +32,17 @@ void inital_setup(void){
     P3->DIR &= ~(BIT5|BIT6);//configure to input
     P3->REN |= (BIT5|BIT6);//enable resistor
     P3->OUT |= (BIT5|BIT6);//set initial value to 1
+
+    //button interrupt
+    P3 -> IE |= (BIT5|BIT6);  //interrupt enabled
+    P3 -> IES |= (BIT5|BIT6); //interrupt high to low
+    P3 -> IFG &= (BIT5|BIT6); //clear the interrupt flag
     //RGB setup
+    P2->SEL0 &= ~(BIT0|BIT1|BIT2);//gpio mode
+    P2->SEL1 &= ~(BIT0|BIT1|BIT2);
+    P2->DIR  |= ~(BIT0|BIT1|BIT2);//configure to output
+    P2->REN |= ~(BIT0|BIT1|BIT2);//enable resistor
+    P2->OUT &= ~(BIT0|BIT1|BIT2);//initial value to zero
 }
 
 void delay_ms(uint8_t delay_time){
