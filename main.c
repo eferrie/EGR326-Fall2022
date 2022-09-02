@@ -2,27 +2,45 @@
 #include <stdio.h>
 #include <math.h>
 
+#define RED 0
+#define GREEN 1
+#define BLUE 2
+
 //define the debounce time
 #define DEBOUNCE_TIME 30
 
 void inital_setup(void);
 void delay_ms(uint8_t delay_time);//delay for ms time
 void delay_micro(uint8_t delay_time);//delay for microsecond time
+void turn_RGB_on(uint8_t color);
+uint8_t debounceSwitch(uint8_t pinNum)
+enum mode{
+    start,
+    red,
+    green,
+    blue
+} RGB = start;
+
+//defining a button pressed state
+uint8_t buttonPressed = 0;
 
 int main(void){
-
-    //need to implement some type of debouncing method to the button inputs
     inital_setup();
-    //checking for the first button
-    if(!(P3->IN & BIT5)){
-                //Wait before checking again
-                delay_ms(DEBOUNCE_TIME);
-                if(!(P3->IN & BIT5)){
-                delay_ms(DEBOUNCE_TIME);
-                while(!(P3->IN & BIT5));//wait til button is released
-                }
+    WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
+    //setup interrupts for buttons on port 3
+    NVIC_EnableIRQ(PORT3_IRQn);//using pins on port 3 only
+    __enable_interrupt();//starting to write interrupts now
+
+
+    while(1){
+        if(buttonPressed){//if the first button is pressed
+            P4->OUT &= ~(BIT0|BIT1|BIT2);
+            P4->OUT |= BIT(RGB);//put any of the colors as debounced color
+            buttonPressed = 0;
+        }
+        //for the other button is pressed
     }
-    return 0;
+    //need to implement some type of debouncing method to the button inputs
 }
 
 void inital_setup(void){
@@ -36,25 +54,52 @@ void inital_setup(void){
     //button interrupt
     P3 -> IE |= (BIT5|BIT6);  //interrupt enabled
     P3 -> IES |= (BIT5|BIT6); //interrupt high to low
-    P3 -> IFG &= (BIT5|BIT6); //clear the interrupt flag
-    //RGB setup
-    P2->SEL0 &= ~(BIT0|BIT1|BIT2);//gpio mode
-    P2->SEL1 &= ~(BIT0|BIT1|BIT2);
-    P2->DIR  |= ~(BIT0|BIT1|BIT2);//configure to output
-    P2->REN |= ~(BIT0|BIT1|BIT2);//enable resistor
-    P2->OUT &= ~(BIT0|BIT1|BIT2);//initial value to zero
+    P3 -> IFG &= ~(BIT5|BIT6); //clear the interrupt flag
+    //RGB setup  R=0 G=1 B=2
+    P4->SEL0 &= ~(BIT0|BIT1|BIT2);//gpio mode
+    P4->SEL1 &= ~(BIT0|BIT1|BIT2);
+    P4->DIR  |= (BIT0|BIT1|BIT2);//configure to output
+    P4->REN |= ~(BIT0|BIT1|BIT2);//enable resistor
+    P4->OUT &= ~(BIT0|BIT1|BIT2);//initial value to zero
+}
+void turn_RGB_on(uint8_t color){
+    P4->OUT |= 0b00000001 << color;
 }
 
-void delay_ms(uint8_t delay_time){
-        SysTick->LOAD = (delay_time*3000) - 1; //to get ms
-        SysTick->VAL = 'q'; //STCVR - Any value clears
-        SysTick->CTRL = 0b1; //STCSR - Enable SysTick
-        while(!(SysTick->CTRL&BIT(16))); //0b10000000000000000
+
+extern void PORT3_IRQHandler(){
+
+    //add button debounce sequence here? location of is still pretty funky
+
+    if(P3->IFG & BIT5){//IF BUTTON BLUE IS PRESSSED
+
+        if(RGB != blue){
+            RGB++;
+        }
+        else{
+            RGB = red;
+        }
+    }
+    if(P3->IFG & BIT6){//IF BUTTON BLACK IS PRESSSED
+        if(RGB != red){
+            RGB--;
+        }
+        else{
+            RGB = blue;
+        }
+    }
+    buttonPressed = 1;
+    P3-> IFG = 0;
+
 }
 
-void delay_micro(uint8_t delay_time){
-        SysTick->LOAD = (delay_time*3) - 1; //to get us
-        SysTick->VAL = 'a'; //STCVR - Any value clears
-        SysTick->CTRL = 0b1; //STCSR - Enable SysTick
-        while(!(SysTick->CTRL&BIT(16))); //0b10000000000000000
+uint8_t debounceSwitch(uint8_t pinNum){
+      static uint16_t State = 0;             // Current debounce status
+
+      State=(State<<1) | (P3->IN &BIT(pinNum))>>1 | 0xfc00;
+      __delay_cycles(DEBOUNCE_TIME*100);
+      if(State==0xfc00)return 1;            // indicates 0 level is stable for 10 consecutive calls
+    return 0;
 }
+
+
