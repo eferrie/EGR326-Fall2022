@@ -13,7 +13,7 @@ void inital_setup(void);
 void delay_ms(uint8_t delay_time);//delay for ms time
 void delay_micro(uint8_t delay_time);//delay for microsecond time
 void turn_RGB_on(uint8_t color);
-uint8_t debounceSwitch(uint8_t pinNum)
+uint8_t debounceSwitch(uint8_t pinNum);
 enum mode{
     start,
     red,
@@ -33,11 +33,8 @@ int main(void){
 
 
     while(1){
-        if(buttonPressed){//if the first button is pressed
-            P4->OUT &= ~(BIT0|BIT1|BIT2);
-            P4->OUT |= BIT(RGB);//put any of the colors as debounced color
-            buttonPressed = 0;
-        }
+            P2->OUT &= ~(BIT0|BIT1|BIT2);
+            P2->OUT |= BIT(RGB);//put any of the colors as debounced color
         //for the other button is pressed
     }
     //need to implement some type of debouncing method to the button inputs
@@ -56,11 +53,11 @@ void inital_setup(void){
     P3 -> IES |= (BIT5|BIT6); //interrupt high to low
     P3 -> IFG &= ~(BIT5|BIT6); //clear the interrupt flag
     //RGB setup  R=0 G=1 B=2
-    P4->SEL0 &= ~(BIT0|BIT1|BIT2);//gpio mode
-    P4->SEL1 &= ~(BIT0|BIT1|BIT2);
-    P4->DIR  |= (BIT0|BIT1|BIT2);//configure to output
-    P4->REN |= ~(BIT0|BIT1|BIT2);//enable resistor
-    P4->OUT &= ~(BIT0|BIT1|BIT2);//initial value to zero
+    P2->SEL0 &= ~(BIT0|BIT1|BIT2);//gpio mode
+    P2->SEL1 &= ~(BIT0|BIT1|BIT2);
+    P2->DIR  |= (BIT0|BIT1|BIT2);//configure to output
+    P2->REN |= ~(BIT0|BIT1|BIT2);//enable resistor
+    P2->OUT &= ~(BIT0|BIT1|BIT2);//initial value to zero
 }
 void turn_RGB_on(uint8_t color){
     P4->OUT |= 0b00000001 << color;
@@ -72,23 +69,25 @@ extern void PORT3_IRQHandler(){
     //add button debounce sequence here? location of is still pretty funky
 
     if(P3->IFG & BIT5){//IF BUTTON BLUE IS PRESSSED
-
-        if(RGB != blue){
-            RGB++;
-        }
-        else{
-            RGB = red;
+        if(debounceSwitch(5)){
+            if(RGB != blue){
+                RGB++;
+            }
+            else{
+                RGB = red;
+            }
         }
     }
     if(P3->IFG & BIT6){//IF BUTTON BLACK IS PRESSSED
-        if(RGB != red){
-            RGB--;
-        }
-        else{
-            RGB = blue;
+        if(debounceSwitch(6)){
+            if(RGB != red){
+                RGB--;
+            }
+            else{
+                RGB = blue;
+            }
         }
     }
-    buttonPressed = 1;
     P3-> IFG = 0;
 
 }
