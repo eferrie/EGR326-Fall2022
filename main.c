@@ -7,22 +7,18 @@
 #define BLUE 2
 
 //define the debounce time
-#define DEBOUNCE_TIME 30
+#define DEBOUNCE_TIME 3
 
 void inital_setup(void);
 void delay_ms(uint8_t delay_time);//delay for ms time
-void delay_micro(uint8_t delay_time);//delay for microsecond time
 void turn_RGB_on(uint8_t color);
 uint8_t debounceSwitch(uint8_t pinNum);
 enum mode{
-    start,
     red,
     green,
-    blue
+    blue,
+    start
 } RGB = start;
-
-//defining a button pressed state
-uint8_t buttonPressed = 0;
 
 int main(void){
     inital_setup();
@@ -33,8 +29,7 @@ int main(void){
 
 
     while(1){
-            P2->OUT &= ~(BIT0|BIT1|BIT2);
-            P2->OUT |= BIT(RGB);//put any of the colors as debounced color
+            turn_RGB_on(RGB);
         //for the other button is pressed
     }
     //need to implement some type of debouncing method to the button inputs
@@ -46,7 +41,6 @@ void inital_setup(void){
     P3->SEL1 &= ~(BIT5|BIT6);//set as GPIO
     P3->DIR &= ~(BIT5|BIT6);//configure to input
     P3->REN |= (BIT5|BIT6);//enable resistor
-    P3->OUT |= (BIT5|BIT6);//set initial value to 1
 
     //button interrupt
     P3 -> IE |= (BIT5|BIT6);  //interrupt enabled
@@ -60,7 +54,8 @@ void inital_setup(void){
     P2->OUT &= ~(BIT0|BIT1|BIT2);//initial value to zero
 }
 void turn_RGB_on(uint8_t color){
-    P4->OUT |= 0b00000001 << color;
+    P2->OUT &= ~(BIT0|BIT1|BIT2);
+    P2->OUT |= BIT(color);
 }
 
 
@@ -69,17 +64,16 @@ extern void PORT3_IRQHandler(){
     //add button debounce sequence here? location of is still pretty funky
 
     if(P3->IFG & BIT5){//IF BUTTON BLUE IS PRESSSED
-        if(debounceSwitch(5)){
-            if(RGB != blue){
-                RGB++;
+        //button debounce...need to check why the in register isn't updating
+                if(RGB != start){
+                   RGB++;
+                }
+                else{
+                   RGB = red;
+                }
             }
-            else{
-                RGB = red;
-            }
-        }
-    }
     if(P3->IFG & BIT6){//IF BUTTON BLACK IS PRESSSED
-        if(debounceSwitch(6)){
+        if(debounceSwitch(6)==1){
             if(RGB != red){
                 RGB--;
             }
@@ -95,10 +89,15 @@ extern void PORT3_IRQHandler(){
 uint8_t debounceSwitch(uint8_t pinNum){
       static uint16_t State = 0;             // Current debounce status
 
-      State=(State<<1) | (P3->IN &BIT(pinNum))>>1 | 0xfc00;
-      __delay_cycles(DEBOUNCE_TIME*100);
+      State=(State<<1) | (P3->IN & BIT(pinNum))>>1 | 0xfc00;
+      __delay_cycles(DEBOUNCE_TIME*5000);
       if(State==0xfc00)return 1;            // indicates 0 level is stable for 10 consecutive calls
     return 0;
 }
 
-
+void delay_ms(uint8_t delay_time){
+        SysTick->LOAD = (delay_time*3000) - 1; //multiplying by 3000 to get to ms
+        SysTick->VAL = 8; //Any value clears
+        SysTick->CTRL = 0b1; //Enable SysTick
+        while(!(SysTick->CTRL&BIT(16))); //0b10000000000000000
+    }
